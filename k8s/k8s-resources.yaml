@@ -1,0 +1,123 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    eks.amazonaws.com/role-arn: <IAM_ROLE_ARN>
+  name: confluent-lag-metrics
+---
+apiVersion: secrets-store.csi.x-k8s.io/v1alpha1
+kind: SecretProviderClass
+metadata:
+  name: confluent-lag-metrics
+  namespace: kube-system
+spec:
+  provider: aws
+  parameters:
+    objects: |-
+      - objectName: "confluent-lag-metrics"
+        objectType: "secretsmanager"
+---
+apiVersion: apiregistration.k8s.io/v1 
+kind: APIService
+metadata:
+  name: v1beta1.custom.metrics.k8s.io
+spec:
+  insecureSkipTLSVerify: true
+  group: custom.metrics.k8s.io
+  groupPriorityMinimum: 1000
+  versionPriority: 5
+  service:
+    name: confluent-lag-metrics
+    namespace: kube-system
+  version: v1beta1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: confluent-lag-metrics
+  namespace: kube-system
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 8090
+  selector:
+    app: confluent-lag-metrics
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: confluent-lag-metrics
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: confluent-lag-metrics
+  template:
+    metadata:
+      labels:
+        app: confluent-lag-metrics
+    spec:
+      containers:
+      - image: <IMAGE>
+        name: confluent-lag-metrics
+        ports:
+        - containerPort: 8090
+        volumeMounts:
+        - mountPath: /tmp/serving-certs
+          name: cert
+          readOnly: true
+        - name: secrets-store-inline
+          mountPath: "/mnt/secrets"
+          readOnly: true
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+      priorityClassName: system-cluster-critical
+      serviceAccountName: confluent-lag-metrics
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: confluent-lag-metrics-tls
+      - name: secrets-store-inline
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: confluent-lag-metrics
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/name: confluent-lag-metrics
+  name: confluent-lag-metrics-cert
+  namespace: kube-system
+spec:
+  dnsNames:
+  - confluent-lag-metrics.kube-system.svc
+  - confluent-lag-metrics.kube-system.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: confluent-lag-metrics-selfsigned-issuer
+  secretName: confluent-lag-metrics-tls
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  labels:
+    app.kubernetes.io/name: confluent-lag-metrics
+  name: confluent-lag-metrics-selfsigned-issuer
+  namespace: kube-system
+spec:
+  selfSigned: {}
