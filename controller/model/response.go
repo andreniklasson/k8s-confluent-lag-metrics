@@ -28,7 +28,7 @@ type DescribedObject struct {
 	Name string `json:"name"`
 }
 
-func NewResponse(name string, consumerLag float32) Response {
+func NewResponse(name string, consumerLag float64) Response {
 	describedObject := DescribedObject{
 		Kind: "Pod",
 		Name: name,

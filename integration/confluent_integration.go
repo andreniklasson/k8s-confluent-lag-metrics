@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/andreniklasson/k8s-confluent-lag-metrics/integration/model"
@@ -33,7 +32,7 @@ func NewConfluentIntegration(url string, apiKey string, apiSecret string, cluste
 	}
 }
 
-func (ci *ConfluentIntegration) QueryConsumerLag(consumerGroup string) (float32, error) {
+func (ci *ConfluentIntegration) QueryConsumerLag(consumerGroup string) (float64, error) {
 	request := model.CreateRequest(consumerGroup, ci.clusterId)
 	httpRequest, err := httpRequest(request, ci.baseUrl, ci.authorizationHeader)
 
@@ -46,7 +45,7 @@ func (ci *ConfluentIntegration) QueryConsumerLag(consumerGroup string) (float32,
 	if err != nil {
 		return 0.0, err
 	}
-	return getHighestConsumerLagValue(response), nil
+	return getTotalLag(response), nil
 }
 
 func handleHttpResponse(httpResponse *http.Response) (model.Response, error) {
@@ -86,13 +85,21 @@ func httpRequest(request model.Request, baseUrl string, authorizationHeader stri
 	return httpRequest, nil
 }
 
-func getHighestConsumerLagValue(response model.Response) float32 {
+func getTotalLag(response model.Response) float64 {
 	if len(response.Data) == 0 {
 		return 0.0
 	}
 
-	sort.Slice(response.Data, func(i, j int) bool {
-		return response.Data[i].Value > response.Data[j].Value
-	})
-	return response.Data[0].Value
+	topicLagMap := make(map[string]float64)
+	for _, data := range response.Data {
+		if topicLagMap[data.Topic] < data.Value {
+			topicLagMap[data.Topic] = data.Value
+		}
+	}
+
+	totalLag := 0.0
+	for _, topicLag := range topicLagMap {
+		totalLag = totalLag + topicLag
+	}
+	return totalLag
 }

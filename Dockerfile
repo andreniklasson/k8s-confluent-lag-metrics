@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN go build -o confluent-metrics ./src/cmd
+RUN go build -o confluent-metrics ./cmd
 
 EXPOSE 8090
 

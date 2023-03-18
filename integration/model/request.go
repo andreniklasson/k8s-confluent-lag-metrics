@@ -56,9 +56,9 @@ func CreateRequest(consumerGroup string, clusterId string) Request {
 			"metric.topic",
 		},
 		Intervals: []string{
-			"PT3M/now",
+			"PT5M/now",
 		},
-		Limit: 10,
+		Limit: 9999,
 	}
 	return request
 }

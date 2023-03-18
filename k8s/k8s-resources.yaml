@@ -15,7 +15,7 @@ spec:
   provider: aws
   parameters:
     objects: |-
-      - objectName: "confluent-lag-metrics"
+      - objectName: "confluent-metrics"
         objectType: "secretsmanager"
 ---
 apiVersion: apiregistration.k8s.io/v1 

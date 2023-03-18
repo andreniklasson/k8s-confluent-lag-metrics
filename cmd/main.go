@@ -12,7 +12,7 @@ import (
 
 func main() {
 	logger := stdlog.GetFromFlags()
-	secret, err := config.ReadSecret("/mnt/secrets/confluent-lag-metrics")
+	secret, err := config.ReadSecret("/mnt/secrets/confluent-metrics")
 	if err != nil {
 		panic(err)
 	}
